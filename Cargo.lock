@@ -164,7 +164,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gi-ui-x11"
+name = "gi-ui-app"
 version = "0.1.0"
 dependencies = [
  "gi-ui",
