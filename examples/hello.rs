@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ui = create_ui();
     let mut application = Application::new(200, 200)?;
 
-    application.attach_main_drawable(&mut ui);
+    application.attach_main_drawable(Box::new(ui));
 
     application.run()
 }

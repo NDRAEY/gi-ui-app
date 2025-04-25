@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use gi_ui::{Drawable, canvas::Canvas};
 use x11rb::{
     connection::Connection, protocol::{
@@ -7,9 +9,9 @@ use x11rb::{
     }, rust_connection::RustConnection, wrapper::ConnectionExt as WrappedConnectionExt, COPY_DEPTH_FROM_PARENT
 };
 
-pub struct Application<'a> {
+pub struct Application {
     canvas: Canvas,
-    main_drawable: Option<&'a mut dyn Drawable>,
+    main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
 
     // X11 zone
     conn: RustConnection,
@@ -21,7 +23,7 @@ pub struct Application<'a> {
     gc_id: u32,
 }
 
-impl<'drawable> Application<'drawable> {
+impl Application {
     pub fn new(width: u32, height: u32) -> Result<Self, Box<dyn std::error::Error>> {
         let (conn, screen_num) = x11rb::connect(None)?;
 
@@ -101,7 +103,7 @@ impl<'drawable> Application<'drawable> {
         let screen = &self.conn.setup().roots[self.screen_num];
 
         if let Some(drawable) = &mut self.main_drawable {
-            drawable.draw(&mut self.canvas, 0, 0);
+            drawable.borrow_mut().draw(&mut self.canvas, 0, 0);
         }
 
         let buffer = self.canvas.buffer();
@@ -149,8 +151,10 @@ impl<'drawable> Application<'drawable> {
         Ok(())
     }
 
-    pub fn attach_main_drawable(&mut self, drawable: &'drawable mut dyn Drawable) {
-        self.main_drawable = Some(drawable);
+    pub fn attach_main_drawable(&mut self, drawable: Box<dyn Drawable>) -> &Rc<RefCell<Box<dyn Drawable>>> {
+        self.main_drawable = Some(Rc::new(RefCell::new(drawable)));
+
+        self.main_drawable.as_ref().unwrap()
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -186,7 +190,7 @@ impl<'drawable> Application<'drawable> {
     }
 }
 
-impl Drop for Application<'_> {
+impl Drop for Application {
     fn drop(&mut self) {
         self.conn.free_gc(self.gc_id).unwrap();
         self.conn.free_pixmap(self.pixmap_id).unwrap();
