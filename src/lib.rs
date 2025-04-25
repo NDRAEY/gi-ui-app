@@ -2,20 +2,29 @@ use std::{cell::RefCell, rc::Rc};
 
 use gi_ui::{Drawable, canvas::Canvas};
 use x11rb::{
-    connection::{Connection, RequestConnection}, protocol::{
+    COPY_DEPTH_FROM_PARENT,
+    connection::{Connection, RequestConnection},
+    protocol::{
+        Event,
         xproto::{
-            AtomEnum, BackingStore, ChangeWindowAttributesAux, ConnectionExt, CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, PropMode, Screen, Window, WindowClass
-        }, Event
-    }, rust_connection::RustConnection, wrapper::ConnectionExt as WrappedConnectionExt, COPY_DEPTH_FROM_PARENT
+            AtomEnum, BackingStore, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt,
+            CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, PropMode, Screen, Window,
+            WindowClass,
+        },
+    },
+    rust_connection::RustConnection,
+    wrapper::ConnectionExt as WrappedConnectionExt,
 };
 
 const DEFAULT_TITLE: &str = "Untitled";
-
 pub struct Application {
     canvas: Canvas,
     main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
 
     title: String,
+
+    width: u32,
+    height: u32,
 
     // X11 zone
     conn: RustConnection,
@@ -69,6 +78,11 @@ impl Application {
             title: String::from(DEFAULT_TITLE),
             canvas,
             main_drawable: None,
+
+            width,
+            height,
+
+            // X11
             conn,
             screen_num,
             window_id: win,
@@ -173,13 +187,33 @@ impl Application {
     pub fn hide(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.conn.unmap_window(self.window_id)?;
         self.conn.flush()?;
-        
+
         Ok(())
     }
 
     pub fn show(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.conn.map_window(self.window_id)?;
         self.conn.flush()?;
+
+        Ok(())
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+        self.conn.configure_window(
+            self.window_id,
+            &ConfigureWindowAux::default().width(width).height(height),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    pub fn set_position(&mut self, x: i32, y: i32) -> Result<(), Box<dyn std::error::Error>> {
+        self.conn
+            .configure_window(self.window_id, &ConfigureWindowAux::default().x(x).y(y))?;
 
         Ok(())
     }

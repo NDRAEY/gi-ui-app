@@ -1,8 +1,8 @@
-use gi_ui::size::SizePolicy;
+use gi_ui::Drawable;
 use gi_ui::canvas::Canvas;
 use gi_ui::components::circle::Circle;
 use gi_ui::draw::Draw;
-use gi_ui::Drawable;
+use gi_ui::size::SizePolicy;
 use gi_ui_app::Application;
 use x11rb::connection::Connection;
 
