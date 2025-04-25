@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gi-ui = { git = "https://github.com/NDRAEY/gi-ui", version = "0.1.0" }
+gi-ui = { git = "https://github.com/NDRAEY/gi-ui", version = "0.1.0", default-features = false }
 x11rb = { version = "0.13.1", features = ["xinput", "xkb"] }
