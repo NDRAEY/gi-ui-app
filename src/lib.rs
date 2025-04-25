@@ -3,12 +3,12 @@ use std::{cell::RefCell, rc::Rc};
 use gi_ui::{Drawable, canvas::Canvas};
 use x11rb::{
     COPY_DEPTH_FROM_PARENT,
-    connection::{Connection, RequestConnection},
+    connection::Connection,
     protocol::{
         Event,
         xproto::{
-            AtomEnum, BackingStore, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt,
-            CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, PropMode, Screen, Window,
+            AtomEnum, ConfigureWindowAux, ConnectionExt,
+            CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, PropMode, Window,
             WindowClass,
         },
     },
