@@ -2,16 +2,20 @@ use std::{cell::RefCell, rc::Rc};
 
 use gi_ui::{Drawable, canvas::Canvas};
 use x11rb::{
-    connection::Connection, protocol::{
+    connection::{Connection, RequestConnection}, protocol::{
         xproto::{
-            BackingStore, ChangeWindowAttributesAux, ConnectionExt, CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, Screen, Window, WindowClass
+            AtomEnum, BackingStore, ChangeWindowAttributesAux, ConnectionExt, CreateGCAux, CreateWindowAux, EventMask, ImageFormat, Pixmap, PropMode, Screen, Window, WindowClass
         }, Event
     }, rust_connection::RustConnection, wrapper::ConnectionExt as WrappedConnectionExt, COPY_DEPTH_FROM_PARENT
 };
 
+const DEFAULT_TITLE: &str = "Untitled";
+
 pub struct Application {
     canvas: Canvas,
     main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
+
+    title: String,
 
     // X11 zone
     conn: RustConnection,
@@ -48,9 +52,6 @@ impl Application {
                 .event_mask(EventMask::EXPOSURE | EventMask::STRUCTURE_NOTIFY),
         )?;
 
-        conn.map_window(win)?;
-        conn.flush()?;
-
         let pixmap = conn.generate_id()?;
         conn.create_pixmap(
             screen.root_depth,
@@ -64,7 +65,8 @@ impl Application {
         let gc = conn.generate_id()?;
         conn.create_gc(gc, pixmap, &CreateGCAux::new())?.check()?;
 
-        Ok(Application {
+        let mut app = Application {
+            title: String::from(DEFAULT_TITLE),
             canvas,
             main_drawable: None,
             conn,
@@ -72,7 +74,11 @@ impl Application {
             window_id: win,
             pixmap_id: pixmap,
             gc_id: gc,
-        })
+        };
+
+        app.set_title(DEFAULT_TITLE)?;
+
+        Ok(app)
     }
 
     fn recreate_pixmap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -94,7 +100,9 @@ impl Application {
             )?
             .check()?;
 
-        self.conn.create_gc(self.gc_id, self.pixmap_id, &CreateGCAux::new())?.check()?;
+        self.conn
+            .create_gc(self.gc_id, self.pixmap_id, &CreateGCAux::new())?
+            .check()?;
 
         Ok(())
     }
@@ -121,18 +129,20 @@ impl Application {
             x11_buffer[i * 4 + 3] = argb[3];
         }
 
-        self.conn.put_image(
-            ImageFormat::Z_PIXMAP,
-            self.pixmap_id,
-            self.gc_id,
-            width as _,
-            height as _,
-            0,
-            0,
-            0,
-            screen.root_depth,
-            &x11_buffer,
-        )?.check()?;
+        self.conn
+            .put_image(
+                ImageFormat::Z_PIXMAP,
+                self.pixmap_id,
+                self.gc_id,
+                width as _,
+                height as _,
+                0,
+                0,
+                0,
+                screen.root_depth,
+                &x11_buffer,
+            )?
+            .check()?;
 
         self.conn
             .copy_area(
@@ -151,13 +161,32 @@ impl Application {
         Ok(())
     }
 
-    pub fn attach_main_drawable(&mut self, drawable: Box<dyn Drawable>) -> &Rc<RefCell<Box<dyn Drawable>>> {
+    pub fn attach_main_drawable(
+        &mut self,
+        drawable: Box<dyn Drawable>,
+    ) -> &Rc<RefCell<Box<dyn Drawable>>> {
         self.main_drawable = Some(Rc::new(RefCell::new(drawable)));
 
         self.main_drawable.as_ref().unwrap()
     }
 
+    pub fn hide(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.conn.unmap_window(self.window_id)?;
+        self.conn.flush()?;
+        
+        Ok(())
+    }
+
+    pub fn show(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.conn.map_window(self.window_id)?;
+        self.conn.flush()?;
+
+        Ok(())
+    }
+
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.show()?;
+
         loop {
             let event = self.conn.wait_for_event()?;
             match event {
@@ -170,7 +199,7 @@ impl Application {
                 }
                 Event::ConfigureNotify(msg) => {
                     // Handle window resize
-                    
+
                     self.canvas.fill(0);
                     self.canvas.resize(msg.width as _, msg.height as _);
                     self.recreate_pixmap()?;
@@ -185,6 +214,24 @@ impl Application {
             self.conn.sync()?;
             self.conn.flush()?;
         }
+
+        Ok(())
+    }
+
+    pub fn title(&self) -> &String {
+        &self.title
+    }
+
+    pub fn set_title<S: ToString>(&mut self, title: S) -> Result<(), Box<dyn std::error::Error>> {
+        self.title = title.to_string();
+
+        self.conn.change_property8(
+            PropMode::REPLACE,
+            self.window_id,
+            AtomEnum::WM_NAME,
+            AtomEnum::STRING,
+            self.title.as_bytes(),
+        )?;
 
         Ok(())
     }
