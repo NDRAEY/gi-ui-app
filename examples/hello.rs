@@ -6,7 +6,7 @@ use gi_ui_app::Application;
 fn create_ui() -> impl Drawable {
     let circle = Circle::new()
         .with_radius(SizePolicy::FillParent)
-        .set_foreground_color(0xff_ff0000);
+        .with_foreground_color(0xff_ff0000);
 
     circle
 }

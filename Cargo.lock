@@ -81,7 +81,7 @@ dependencies = [
 [[package]]
 name = "gi-derive"
 version = "0.1.0"
-source = "git+https://github.com/NDRAEY/gi-ui#28f84db67db395d08154efd5a537289c22969d01"
+source = "git+https://github.com/NDRAEY/gi-ui#3ae88baa41ef0af96464d37570f7f9f3d48f16a9"
 dependencies = [
  "quote",
  "syn",
@@ -90,7 +90,7 @@ dependencies = [
 [[package]]
 name = "gi-ui"
 version = "0.1.0"
-source = "git+https://github.com/NDRAEY/gi-ui#28f84db67db395d08154efd5a537289c22969d01"
+source = "git+https://github.com/NDRAEY/gi-ui#3ae88baa41ef0af96464d37570f7f9f3d48f16a9"
 dependencies = [
  "embedded-graphics",
  "gi-derive",
