@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::{Cell, RefCell}, rc::Rc};
 
 use gi_ui::{Drawable, canvas::Canvas};
 use x11rb::{
@@ -22,7 +22,7 @@ pub struct Application {
     canvas: Canvas,
     main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
 
-    title: String,
+    title: std::cell::Cell<String>,
 
     width: u32,
     height: u32,
@@ -78,7 +78,7 @@ impl Application {
         conn.create_gc(gc, pixmap, &CreateGCAux::new())?.check()?;
 
         let mut app = Application {
-            title: String::from(DEFAULT_TITLE),
+            title: Cell::new(String::from(DEFAULT_TITLE)),
             canvas,
             main_drawable: None,
 
@@ -247,7 +247,7 @@ impl Application {
                     self.canvas.resize(msg.width as _, msg.height as _);
                     self.recreate_pixmap()?;
 
-                    if !self.on_resize_callback.is_none() {
+                    if self.on_resize_callback.is_some() {
                         (self.on_resize_callback.as_mut().unwrap())(msg.width as _, msg.height as _);
                     }
                 }
@@ -265,19 +265,25 @@ impl Application {
         Ok(())
     }
 
-    pub fn title(&self) -> &String {
-        &self.title
+    pub fn title(&self) -> String {
+        let t = self.title.take();
+        
+        self.title.set(t.clone());
+
+        t
     }
 
-    pub fn set_title<S: ToString>(&mut self, title: S) -> Result<(), Box<dyn std::error::Error>> {
-        self.title = title.to_string();
+    pub fn set_title<S: ToString>(&self, title: S) -> Result<(), Box<dyn std::error::Error>> {
+        let t = title.to_string();
+
+        self.title.set(t.clone());
 
         self.conn.change_property8(
             PropMode::REPLACE,
             self.window_id,
             AtomEnum::WM_NAME,
             AtomEnum::STRING,
-            self.title.as_bytes(),
+            t.as_bytes(),
         )?;
 
         Ok(())
