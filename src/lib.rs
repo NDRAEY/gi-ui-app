@@ -189,21 +189,21 @@ impl Application {
         self.main_drawable.as_ref().unwrap()
     }
 
-    pub fn hide(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn hide(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.conn.unmap_window(self.window_id)?;
         self.conn.flush()?;
 
         Ok(())
     }
 
-    pub fn show(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn show(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.conn.map_window(self.window_id)?;
         self.conn.flush()?;
 
         Ok(())
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn resize(&self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
         self.conn.configure_window(
             self.window_id,
             &ConfigureWindowAux::default().width(width).height(height),
@@ -216,7 +216,7 @@ impl Application {
         (self.width, self.height)
     }
 
-    pub fn set_position(&mut self, x: i32, y: i32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_position(&self, x: i32, y: i32) -> Result<(), Box<dyn std::error::Error>> {
         self.conn
             .configure_window(self.window_id, &ConfigureWindowAux::default().x(x).y(y))?;
 
