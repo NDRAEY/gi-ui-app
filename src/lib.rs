@@ -17,6 +17,7 @@ use x11rb::{
 };
 
 const DEFAULT_TITLE: &str = "Untitled";
+
 pub struct Application {
     canvas: Canvas,
     main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
@@ -25,6 +26,8 @@ pub struct Application {
 
     width: u32,
     height: u32,
+
+    pub on_resize_callback: Option<Box<dyn FnMut(usize, usize)>>,
 
     // X11 zone
     conn: RustConnection,
@@ -81,6 +84,8 @@ impl Application {
 
             width,
             height,
+
+            on_resize_callback: None,
 
             // X11
             conn,
@@ -218,6 +223,10 @@ impl Application {
         Ok(())
     }
 
+    pub fn set_resize_callback(&mut self, cb: (impl Fn(usize, usize) + 'static)) {
+        self.on_resize_callback = Some(Box::new(cb));
+    }
+
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.show()?;
 
@@ -237,6 +246,10 @@ impl Application {
                     self.canvas.fill(0);
                     self.canvas.resize(msg.width as _, msg.height as _);
                     self.recreate_pixmap()?;
+
+                    if !self.on_resize_callback.is_none() {
+                        (self.on_resize_callback.as_mut().unwrap())(msg.width as _, msg.height as _);
+                    }
                 }
                 Event::DestroyNotify(_) => {
                     println!("Destroy!");
