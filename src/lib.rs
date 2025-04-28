@@ -19,10 +19,10 @@ use x11rb::{
 const DEFAULT_TITLE: &str = "Untitled";
 
 pub struct Application {
-    canvas: Canvas,
+    canvas: RefCell<Canvas>,
     main_drawable: Option<Rc<RefCell<Box<dyn Drawable>>>>,
 
-    title: std::cell::Cell<String>,
+    title: RefCell<String>,
 
     width: u32,
     height: u32,
@@ -78,8 +78,8 @@ impl Application {
         conn.create_gc(gc, pixmap, &CreateGCAux::new())?.check()?;
 
         let mut app = Application {
-            title: Cell::new(String::from(DEFAULT_TITLE)),
-            canvas,
+            title: RefCell::new(String::from(DEFAULT_TITLE)),
+            canvas: RefCell::new(canvas),
             main_drawable: None,
 
             width,
@@ -109,13 +109,15 @@ impl Application {
         self.pixmap_id = self.conn.generate_id()?;
         self.gc_id = self.conn.generate_id()?;
 
+        let canvas = self.canvas.borrow();
+
         self.conn
             .create_pixmap(
                 screen.root_depth,
                 self.pixmap_id,
                 screen.root,
-                self.canvas.width() as _,
-                self.canvas.height() as _,
+                canvas.width() as _,
+                canvas.height() as _,
             )?
             .check()?;
 
@@ -126,16 +128,19 @@ impl Application {
         Ok(())
     }
 
-    fn draw(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn draw(&self) -> Result<(), Box<dyn std::error::Error>> {
         let screen = &self.conn.setup().roots[self.screen_num];
 
-        if let Some(drawable) = &mut self.main_drawable {
-            drawable.borrow_mut().draw(&mut self.canvas, 0, 0);
+        if let Some(drawable) = &self.main_drawable {
+            let mut canv = self.canvas.borrow_mut();
+            drawable.borrow_mut().draw(&mut canv, 0, 0);
         }
 
-        let buffer = self.canvas.buffer();
-        let width = self.canvas.width();
-        let height = self.canvas.height();
+        let canv = self.canvas.borrow();
+
+        let buffer = canv.buffer();
+        let width = canv.width();
+        let height = canv.height();
 
         let mut x11_buffer = vec![0; buffer.len()];
         let cycles = width * height;
@@ -243,8 +248,13 @@ impl Application {
                 Event::ConfigureNotify(msg) => {
                     // Handle window resize
 
-                    self.canvas.fill(0);
-                    self.canvas.resize(msg.width as _, msg.height as _);
+                    {
+                        let mut canv = self.canvas.borrow_mut();
+
+                        canv.fill(0);
+                        canv.resize(msg.width as _, msg.height as _);
+                    }
+                    
                     self.recreate_pixmap()?;
 
                     if self.on_resize_callback.is_some() {
@@ -266,17 +276,11 @@ impl Application {
     }
 
     pub fn title(&self) -> String {
-        let t = self.title.take();
-        
-        self.title.set(t.clone());
-
-        t
+        self.title.borrow().clone()
     }
 
     pub fn set_title<S: ToString>(&self, title: S) -> Result<(), Box<dyn std::error::Error>> {
         let t = title.to_string();
-
-        self.title.set(t.clone());
 
         self.conn.change_property8(
             PropMode::REPLACE,
@@ -285,7 +289,9 @@ impl Application {
             AtomEnum::STRING,
             t.as_bytes(),
         )?;
-
+        
+        *self.title.borrow_mut() = t;
+        
         Ok(())
     }
 }
