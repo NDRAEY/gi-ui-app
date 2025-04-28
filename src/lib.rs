@@ -27,7 +27,7 @@ pub struct Application {
     width: u32,
     height: u32,
 
-    pub on_resize_callback: Option<Box<dyn FnMut(usize, usize)>>,
+    pub on_resize_callback: Option<Box<dyn Fn(usize, usize)>>,
 
     // X11 zone
     conn: RustConnection,
@@ -100,14 +100,14 @@ impl Application {
         Ok(app)
     }
 
-    fn recreate_pixmap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn recreate_pixmap(&self) -> Result<(), Box<dyn std::error::Error>> {
         let screen = &self.conn.setup().roots[self.screen_num];
 
         self.conn.free_pixmap(self.pixmap_id)?;
         self.conn.free_gc(self.gc_id)?;
 
-        self.pixmap_id = self.conn.generate_id()?;
-        self.gc_id = self.conn.generate_id()?;
+        // self.pixmap_id = self.conn.generate_id()?;
+        // self.gc_id = self.conn.generate_id()?;
 
         let canvas = self.canvas.borrow();
 
@@ -232,7 +232,7 @@ impl Application {
         self.on_resize_callback = Some(Box::new(cb));
     }
 
-    pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.show()?;
 
         loop {
@@ -258,7 +258,7 @@ impl Application {
                     self.recreate_pixmap()?;
 
                     if self.on_resize_callback.is_some() {
-                        (self.on_resize_callback.as_mut().unwrap())(msg.width as _, msg.height as _);
+                        (self.on_resize_callback.as_ref().unwrap())(msg.width as _, msg.height as _);
                     }
                 }
                 Event::DestroyNotify(_) => {
